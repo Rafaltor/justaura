@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Aura Dance · Lowtaperdu67</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --red: #FF1A1A;
+    --ink: #000000;
+    --paper: #FFFFFF;
+    --muted: #6B6B6B;
+    --wash: #FFE9E9;
+    --display: "Anton", "Impact", "Arial Narrow", sans-serif;
+    --body: "Archivo", system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: var(--body);
+    background: var(--paper);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+  .screen {
+    position: fixed; inset: 0;
+    display: none;
+    padding: calc(24px + env(safe-area-inset-top)) 24px calc(24px + env(safe-area-inset-bottom));
+  }
+  .screen.active { display: flex; }
+
+  /* ---------- Accueil ---------- */
+  #home { flex-direction: column; justify-content: space-between; gap: 24px; overflow-y: auto; }
+  .title {
+    font-family: var(--display);
+    font-size: clamp(56px, min(28vw, 24vh), 220px);
+    line-height: 0.86;
+    letter-spacing: -0.01em;
+    color: var(--red);
+    margin: 0;
+    text-transform: uppercase;
+  }
+  .lede { font-size: 19px; line-height: 1.4; max-width: 30ch; margin: 18px 0 0; }
+  .controls { display: grid; gap: 14px; max-width: 420px; }
+  .btn {
+    font-family: var(--body); font-weight: 800; font-size: 19px;
+    border: 0; border-radius: 999px; padding: 18px 26px;
+    background: var(--ink); color: var(--paper);
+    cursor: pointer; text-align: center;
+  }
+  .btn.secondary { background: var(--paper); color: var(--ink); box-shadow: inset 0 0 0 2px var(--ink); }
+  .btn:focus-visible, .toggle input:focus-visible + span, #pickLabel:focus-within { outline: 3px solid var(--red); outline-offset: 3px; }
+  .btn[disabled] { opacity: .45; cursor: default; }
+  .toggle { display: flex; align-items: center; gap: 12px; font-size: 16px; }
+  .toggle input { width: 22px; height: 22px; accent-color: var(--red); }
+  .note { font-size: 14px; color: var(--muted); line-height: 1.45; margin: 0; }
+  .error { color: var(--red); font-weight: 600; font-size: 15px; margin: 0; min-height: 1.2em; }
+  #pick { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
+
+  /* ---------- Jeu ---------- */
+  #game { padding: 0; flex-direction: column; background: var(--ink); }
+  .pane { position: relative; flex: 1; overflow: hidden; background: #000; }
+  .pane video, .pane canvas {
+    position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  }
+  /* contain : on montre tout le cadre analysé, sinon le joueur croit être cadré alors que ses pieds sont coupés */
+  .pane video, .pane canvas { object-fit: contain; }
+  .mirror video, .mirror canvas { transform: scaleX(-1); }
+  .pane-label {
+    position: absolute; left: 14px; bottom: 12px;
+    font-weight: 800; font-size: 14px; color: var(--paper);
+    background: rgba(0,0,0,.55); padding: 6px 12px; border-radius: 999px;
+  }
+  @media (min-aspect-ratio: 1/1) { #game { flex-direction: row; } }
+
+  .hud {
+    position: absolute; left: 0; right: 0;
+    top: calc(12px + env(safe-area-inset-top));
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: 0 14px; pointer-events: none; z-index: 5;
+  }
+  .score {
+    font-family: var(--display); color: var(--paper);
+    font-size: 44px; line-height: 1;
+    text-shadow: 0 2px 0 var(--red), 0 0 14px rgba(0,0,0,.6);
+  }
+  .score small { display: block; font-family: var(--body); font-weight: 800; font-size: 13px; letter-spacing: .02em; text-shadow: none; }
+  .combo { font-family: var(--display); font-size: 30px; color: var(--paper); text-shadow: 0 0 12px rgba(0,0,0,.7); }
+
+  .judge {
+    position: absolute; left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    font-family: var(--display); text-transform: uppercase; text-align: center;
+    color: var(--paper); font-size: clamp(54px, 15vw, 120px); line-height: .9;
+    text-shadow: 0 4px 0 var(--red), 0 0 24px rgba(0,0,0,.7);
+    pointer-events: none; z-index: 6; white-space: nowrap; opacity: 0;
+  }
+  .judge small { display: block; font-size: .38em; margin-top: 8px; }
+  .judge.show { animation: pop .65s ease-out forwards; }
+  .judge.bad { color: var(--red); text-shadow: 0 4px 0 var(--paper), 0 0 24px rgba(0,0,0,.7); }
+  @keyframes pop {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(.6); }
+    20% { opacity: 1; transform: translate(-50%, -50%) scale(1.06); }
+    70% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+  }
+  .status {
+    position: absolute; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom));
+    transform: translateX(-50%); z-index: 6;
+    background: var(--paper); color: var(--ink);
+    font-weight: 800; font-size: 15px; padding: 10px 16px; border-radius: 999px;
+    max-width: 90vw; text-align: center; display: none;
+  }
+  .status.on { display: block; }
+  .bar { height: 6px; background: rgba(255,255,255,.25); border-radius: 3px; margin-top: 8px; overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: var(--red); }
+
+  /* ---------- Résultat ---------- */
+  #result { flex-direction: column; justify-content: center; gap: 22px; background: var(--red); color: var(--paper); overflow-y: auto; }
+  @media (max-height: 520px) { #result { justify-content: flex-start; } }
+  .rank { font-family: var(--display); font-size: clamp(64px, 20vw, 160px); line-height: .88; margin: 0; text-transform: uppercase; }
+  .verdict { font-size: 19px; line-height: 1.4; max-width: 32ch; margin: 0; }
+  .totals { display: flex; gap: 28px; flex-wrap: wrap; }
+  .totals div { font-family: var(--display); font-size: 48px; line-height: 1; }
+  .totals span { display: block; font-family: var(--body); font-weight: 600; font-size: 14px; margin-top: 4px; }
+  #result .btn { background: var(--paper); color: var(--ink); }
+  #result .btn.secondary { background: transparent; color: var(--paper); box-shadow: inset 0 0 0 2px var(--paper); }
+
+  @keyframes fade { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) {
+    .judge.show { animation: fade .65s linear forwards; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Accueil -->
+<section id="home" class="screen active">
+  <div>
+    <h1 class="title">Aura<br>Dance</h1>
+    <p class="lede">Reproduis les mouvements du roi du mog. La caméra compare ton corps au sien et juge ton aura en direct.</p>
+  </div>
+  <div class="controls">
+    <button id="start" class="btn">Commencer</button>
+    <label class="btn secondary" id="pickLabel" style="display:none">
+      Choisir la vidéo du modèle
+      <input id="pick" type="file" accept="video/*">
+    </label>
+    <label class="toggle"><input id="mirror" type="checkbox" checked><span>Mode miroir : tu bouges comme son reflet</span></label>
+    <p class="error" id="homeError" role="alert"></p>
+    <p class="note">Tout se passe sur ton téléphone : ta vidéo n'est ni enregistrée ni envoyée.</p>
+  </div>
+</section>
+
+<!-- Jeu -->
+<section id="game" class="screen">
+  <div class="pane" id="refPane">
+    <video id="ref" playsinline preload="auto"></video>
+    <span class="pane-label">Le modèle</span>
+  </div>
+  <div class="pane mirror" id="camPane">
+    <video id="cam" playsinline muted autoplay></video>
+    <canvas id="skel"></canvas>
+    <span class="pane-label">Toi</span>
+  </div>
+  <div class="hud">
+    <div class="score"><span id="aura">0</span><small>points d'aura</small></div>
+    <div class="combo" id="combo"></div>
+  </div>
+  <div class="judge" id="judge"></div>
+  <div class="status" id="status" role="status"><span id="statusText"></span><div class="bar"><i id="barFill"></i></div></div>
+</section>
+
+<!-- Résultat -->
+<section id="result" class="screen">
+  <h2 class="rank" id="rank"></h2>
+  <p class="verdict" id="verdict"></p>
+  <div class="totals">
+    <div id="finalAura">0<span>points d'aura</span></div>
+    <div id="finalPrec">0 %<span>de précision</span></div>
+  </div>
+  <div class="controls">
+    <button class="btn" id="again">Rejouer</button>
+    <button class="btn secondary" id="back">Changer de joueur</button>
+  </div>
+</section>
+
+<script type="module">
+import { PoseLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
+
+/* ---------- Réglages ---------- */
+const REF_SRC = "ref.mp4";          // la vidéo du modèle, à placer à côté de ce fichier
+const WINDOW_MS = 700;               // durée d'une note (PARFAIT, PROPRE...)
+const LAG = 0.45;                    // tolérance de retard du joueur, en secondes
+const TOLERANCE_DEG = 50;            // écart moyen d'angle qui donne 0 %
+
+const MODEL_URL = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task";
+const WASM_URL = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm";
+
+// Articulations comparées : [point A, sommet, point B] (indices MediaPipe)
+const JOINTS = {
+  lElbow: [11, 13, 15], rElbow: [12, 14, 16],
+  lShoulder: [23, 11, 13], rShoulder: [24, 12, 14],
+  lHip: [11, 23, 25], rHip: [12, 24, 26],
+  lKnee: [23, 25, 27], rKnee: [24, 26, 28],
+};
+const SWAP = { lElbow: "rElbow", rElbow: "lElbow", lShoulder: "rShoulder", rShoulder: "lShoulder",
+               lHip: "rHip", rHip: "lHip", lKnee: "rKnee", rKnee: "lKnee" };
+const BONES = [[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[25,27],[24,26],[26,28]];
+
+const JUDGMENTS = [
+  { min: 0.80, word: "Mog parfait", aura: 1000, bad: false },
+  { min: 0.62, word: "Propre",      aura: 500,  bad: false },
+  { min: 0.42, word: "Moyen",       aura: 100,  bad: false },
+  { min: 0,    word: "Aura loss",   aura: -300, bad: true  },
+];
+const RANKS = [
+  { min: 80, name: "Roi du mog", text: "Le trône vacille. Le modèle a trouvé son égal." },
+  { min: 60, name: "Mogueur licencié", text: "Tu connais les lois de la jungle. Encore une session d'aura maxing." },
+  { min: 40, name: "Civil éveillé", text: "L'aura est là, quelque part. Elle n'est pas encore sortie." },
+  { min: 0,  name: "NPC", text: "La revanche est un droit sacré. Rejoue." },
+];
+
+/* ---------- Éléments ---------- */
+const $ = (id) => document.getElementById(id);
+const ref = $("ref"), cam = $("cam"), skel = $("skel"), ctx = skel.getContext("2d");
+let landmarker = null, refSamples = null, refKey = null, stream = null;
+let lastTs = 0;
+const nextTs = () => { const n = performance.now(); lastTs = n > lastTs ? n : lastTs + 1; return lastTs; };
+
+// iOS n'autorise la lecture (avec son, ou en mode économie d'énergie) que si play() a été
+// appelé une première fois pendant un tap : à appeler en synchrone dans chaque gestionnaire de clic.
+function unlockMedia() {
+  if (!ref.src) return;
+  const wasMuted = ref.muted;
+  ref.muted = false;
+  const p = ref.play();
+  ref.pause();
+  ref.muted = wasMuted;
+  if (p) p.catch(() => {});
+}
+
+let wakeLock = null;
+async function keepAwake() {
+  try { if ("wakeLock" in navigator && !wakeLock) { wakeLock = await navigator.wakeLock.request("screen"); wakeLock.addEventListener("release", () => { wakeLock = null; }); } }
+  catch (_) {}
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible") return;
+  keepAwake();
+  if (stream && !cameraLive()) { stream = null; startCamera().catch(() => {}); }
+});
+
+function show(id) { document.querySelectorAll(".screen").forEach(s => s.classList.toggle("active", s.id === id)); }
+function setStatus(text, progress) {
+  $("status").classList.toggle("on", !!text);
+  $("statusText").textContent = text || "";
+  $("barFill").parentElement.style.display = progress == null ? "none" : "block";
+  if (progress != null) $("barFill").style.width = Math.round(progress * 100) + "%";
+}
+function homeError(msg) { $("homeError").textContent = msg; }
+
+/* ---------- Source du modèle ---------- */
+async function initSource() {
+  try {
+    const r = await fetch(REF_SRC, { method: "HEAD", cache: "no-store" });
+    // certains hébergeurs refusent HEAD (405/501) alors que le fichier existe
+    if (r.ok || r.status === 405 || r.status === 501) { ref.src = REF_SRC; refKey = REF_SRC; return; }
+  } catch (_) {}
+  $("pickLabel").style.display = "block";
+  $("start").disabled = true;
+}
+$("pick").addEventListener("change", (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  ref.src = URL.createObjectURL(f);
+  refKey = f.name + f.size;
+  refSamples = null;
+  $("start").disabled = false;
+  homeError("");
+});
+
+/* ---------- Géométrie ---------- */
+function angles(lm, aspect) {
+  const out = {};
+  for (const [k, [a, b, c]] of Object.entries(JOINTS)) {
+    const A = lm[a], B = lm[b], C = lm[c];
+    if (!A || !B || !C || Math.min(A.visibility ?? 1, B.visibility ?? 1, C.visibility ?? 1) < 0.5) { out[k] = null; continue; }
+    const v1x = (A.x - B.x) * aspect, v1y = A.y - B.y;
+    const v2x = (C.x - B.x) * aspect, v2y = C.y - B.y;
+    const cos = (v1x * v2x + v1y * v2y) / (Math.hypot(v1x, v1y) * Math.hypot(v2x, v2y) || 1);
+    out[k] = Math.acos(Math.max(-1, Math.min(1, cos))) * 180 / Math.PI;
+  }
+  return out;
+}
+function similarity(user, model, mirror) {
+  let sum = 0, n = 0;
+  for (const k of Object.keys(JOINTS)) {
+    const u = user[mirror ? SWAP[k] : k], m = model[k];
+    if (u == null || m == null) continue;
+    sum += Math.abs(u - m); n++;
+  }
+  if (n < 3) return null;
+  return Math.max(0, 1 - (sum / n) / TOLERANCE_DEG);
+}
+function bestMatch(user, t, mirror) {
+  // recherche du premier échantillon >= t - LAG
+  let lo = 0, hi = refSamples.length;
+  while (lo < hi) { const mid = (lo + hi) >> 1; if (refSamples[mid].t < t - LAG) lo = mid + 1; else hi = mid; }
+  let best = null;
+  for (let i = lo; i < refSamples.length && refSamples[i].t <= t + 0.05; i++) {
+    const s = similarity(user, refSamples[i].a, mirror);
+    if (s != null && (best == null || s > best)) best = s;
+  }
+  return best;
+}
+
+/* ---------- Initialisation ---------- */
+let files = null, delegate = "GPU", recovering = false;
+const createLandmarker = (d) => PoseLandmarker.createFromOptions(files, { baseOptions: { modelAssetPath: MODEL_URL, delegate: d }, runningMode: "VIDEO", numPoses: 1 });
+async function loadModel() {
+  if (landmarker) return;
+  setStatus("Chargement du juge…", null);
+  files = await FilesetResolver.forVisionTasks(WASM_URL);
+  try { landmarker = await createLandmarker("GPU"); }
+  catch (_) { delegate = "CPU"; landmarker = await createLandmarker("CPU"); }
+}
+// Une seule instance : si le GPU plante en cours de route (vu sur certains iPhone), on bascule sur le CPU.
+function detect(video) {
+  if (recovering) return null;
+  try { return landmarker.detectForVideo(video, nextTs()); }
+  catch (e) {
+    console.warn("Détection impossible", e);
+    if (delegate === "GPU") {
+      recovering = true; delegate = "CPU";
+      const old = landmarker;
+      createLandmarker("CPU").then((l) => { landmarker = l; try { old.close(); } catch (_) {} })
+        .catch((err) => console.error(err)).finally(() => { recovering = false; });
+    }
+    return null;
+  }
+}
+const cameraLive = () => !!stream && stream.getVideoTracks().some(t => t.readyState === "live");
+async function startCamera() {
+  if (cameraLive()) { if (cam.paused) await cam.play(); return; }
+  stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: { ideal: 720 }, height: { ideal: 1280 } }, audio: false });
+  cam.srcObject = stream;
+  await cam.play();
+}
+async function waitMeta(v) {
+  if (v.readyState >= 1) return;
+  await new Promise((resolve, reject) => {
+    v.addEventListener("loadedmetadata", resolve, { once: true });
+    v.addEventListener("error", () => reject(new Error("ref illisible")), { once: true });
+  });
+}
+
+async function analyseRef() {
+  if (refSamples && refSamples.key === refKey) return;
+  const samples = [];
+  ref.muted = true; ref.currentTime = 0;
+  // sur iOS, rien n'est chargé tant que play() n'a pas été appelé : on lance d'abord, on attend les métadonnées ensuite
+  await ref.play();
+  await waitMeta(ref);
+  const aspect = ref.videoWidth / ref.videoHeight;
+  await new Promise((resolve) => {
+    let lastT = -1;
+    const step = () => {
+      if (ref.ended) return resolve();
+      if (ref.readyState >= 2 && ref.currentTime !== lastT) {
+        lastT = ref.currentTime;
+        const res = detect(ref);
+        if (res && res.landmarks && res.landmarks[0]) samples.push({ t: lastT, a: angles(res.landmarks[0], aspect) });
+        setStatus("Calibration de l'aura du modèle… mets-toi en entier dans le cadre", lastT / (ref.duration || 1));
+      }
+      requestAnimationFrame(step);
+    };
+    ref.addEventListener("ended", resolve, { once: true });
+    step();
+  });
+  ref.pause();
+  if (samples.length < 10) throw new Error("modèle introuvable dans la vidéo");
+  samples.key = refKey;
+  refSamples = samples;
+}
+
+/* ---------- Partie ---------- */
+let running = false;
+async function play() {
+  const mirror = $("mirror").checked;
+  try { await startCamera(); } catch (_) {}
+  ref.pause(); ref.currentTime = 0;
+  for (const n of ["3", "2", "1"]) { flash(n, "", false); await sleep(900); }
+  flash("Mog !", "", false);
+  setStatus("", null);
+
+  let aura = 0, combo = 0, frames = [], allScores = [], windowStart = performance.now(), lastCamT = -1;
+  $("aura").textContent = "0"; $("combo").textContent = "";
+  ref.muted = false;
+  try { await ref.play(); } catch (_) { ref.muted = true; await ref.play(); } // iOS peut bloquer le son
+  running = true;
+
+  await new Promise((resolve) => {
+    const tick = () => {
+      if (!running) return resolve();
+      if (ref.ended) { running = false; return resolve(); }
+
+      if (cam.readyState >= 2 && cam.currentTime !== lastCamT) {
+        lastCamT = cam.currentTime;
+        const res = detect(cam);
+        const lm = res && res.landmarks && res.landmarks[0];
+        draw(lm);
+        if (lm) {
+          const s = bestMatch(angles(lm, cam.videoWidth / cam.videoHeight), ref.currentTime, mirror);
+          if (s != null) frames.push(s);
+        }
+      }
+
+      const now = performance.now();
+      if (now - windowStart >= WINDOW_MS) {
+        windowStart = now;
+        if (frames.length === 0) {
+          setStatus("On ne te voit pas : recule pour être en entier dans le cadre", null);
+        } else {
+          setStatus("", null);
+          const avg = frames.reduce((a, b) => a + b, 0) / frames.length;
+          allScores.push(avg);
+          const j = JUDGMENTS.find(j => avg >= j.min);
+          combo = j.bad ? 0 : combo + 1;
+          const gain = j.bad ? j.aura : j.aura * (1 + Math.floor(combo / 5) * 0.5);
+          aura += Math.round(gain);
+          $("aura").textContent = aura.toLocaleString("fr-FR");
+          $("combo").textContent = combo >= 3 ? "×" + combo : "";
+          flash(j.word, (gain > 0 ? "+" : "") + Math.round(gain).toLocaleString("fr-FR") + " aura", j.bad);
+        }
+        frames = [];
+      }
+      requestAnimationFrame(tick);
+    };
+    tick();
+  });
+
+  const prec = allScores.length ? Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length * 100) : 0;
+  const r = RANKS.find(r => prec >= r.min);
+  $("rank").textContent = r.name;
+  $("verdict").textContent = r.text;
+  $("finalAura").firstChild.textContent = aura.toLocaleString("fr-FR");
+  $("finalPrec").firstChild.textContent = prec + " %";
+  show("result");
+}
+
+function draw(lm) {
+  if (skel.width !== cam.videoWidth || skel.height !== cam.videoHeight) { skel.width = cam.videoWidth; skel.height = cam.videoHeight; }
+  ctx.clearRect(0, 0, skel.width, skel.height);
+  if (!lm) return;
+  ctx.lineWidth = Math.max(4, skel.width / 120);
+  ctx.lineCap = "round";
+  ctx.strokeStyle = "#FF1A1A";
+  for (const [a, b] of BONES) {
+    if ((lm[a].visibility ?? 1) < 0.5 || (lm[b].visibility ?? 1) < 0.5) continue;
+    ctx.beginPath();
+    ctx.moveTo(lm[a].x * skel.width, lm[a].y * skel.height);
+    ctx.lineTo(lm[b].x * skel.width, lm[b].y * skel.height);
+    ctx.stroke();
+  }
+}
+
+function flash(word, sub, bad) {
+  const el = $("judge");
+  el.classList.remove("show", "bad");
+  el.innerHTML = "";
+  el.append(word);
+  if (sub) { const s = document.createElement("small"); s.textContent = sub; el.append(s); }
+  void el.offsetWidth;
+  el.classList.toggle("bad", bad);
+  el.classList.add("show");
+}
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+/* ---------- Boutons ---------- */
+$("start").addEventListener("click", async () => {
+  homeError("");
+  if (!window.isSecureContext) return homeError("La caméra ne fonctionne qu'en https. Ouvre la page avec une adresse en https://.");
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return homeError("Ce navigateur ne donne pas accès à la caméra. Ouvre la page dans Safari (iPhone) ou Chrome (Android), pas dans l'appli Instagram ou TikTok.");
+  unlockMedia();
+  keepAwake();
+  $("start").disabled = true;
+  try {
+    show("game");
+    setStatus("Autorise la caméra pour jouer", null);
+    await startCamera();
+  } catch (e) {
+    show("home"); $("start").disabled = false;
+    return homeError("Caméra refusée. Autorise-la dans les réglages du navigateur, puis recharge la page.");
+  }
+  try {
+    await loadModel();
+  } catch (e) {
+    show("home"); $("start").disabled = false;
+    return homeError("Impossible de charger le juge. Vérifie ta connexion internet, puis réessaie.");
+  }
+  try {
+    await analyseRef();
+  } catch (e) {
+    console.error(e);
+    show("home"); $("start").disabled = false;
+    return homeError("Impossible de lire la vidéo du modèle (ref.mp4) ou d'y trouver le danseur. Vérifie qu'elle est en ligne, en MP4 H.264, avec le corps entier visible.");
+  }
+  await play();
+  $("start").disabled = false;
+});
+$("again").addEventListener("click", async () => { unlockMedia(); keepAwake(); show("game"); await play(); });
+$("back").addEventListener("click", () => { show("home"); });
+
+initSource();
+</script>
+</body>
+</html>
