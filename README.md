@@ -2,6 +2,8 @@
 
 Jeu de pose à plusieurs, dans l’esprit d’un salon Kahoot. Un écran hôte lance les moves. Chaque joueur est sur son téléphone : la caméra compare sa pose au modèle, et le classement revient sur l’hôte.
 
+La version en ligne, avec les quinze manches et la Battle Royale, est dans [rs-landing](https://github.com/Rafaltor/rs-landing) et tourne sur [lowtaper67.fr](https://lowtaper67.fr). Ce dépôt est l’application autonome.
+
 Aucune image ni vidéo de joueur n’est envoyée. Supabase ne reçoit que le salon, les pseudos et les scores.
 
 ## Lancer en local
